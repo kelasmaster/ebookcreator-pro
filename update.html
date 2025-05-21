@@ -1,0 +1,202 @@
+            wordCount: currentPage.wordCount
+          });
+          currentPage = { content: [para], wordCount: wordCount };
+        } else {
+          currentPage.content.push(para);
+          currentPage.wordCount += wordCount;
+        }
+      }
+      
+      if (currentPage.content.length > 0) {
+        result.push({
+          content: currentPage.content.join("\n\n"),
+          wordCount: currentPage.wordCount
+        });
+      }
+      
+      return result;
+    }
+    
+    // Export functions
+    async function exportEbook() {
+      if (pages.length === 0) {
+        showNotification("Please generate the ebook first", "error");
+        return;
+      }
+      
+      const exportPDF = document.getElementById("exportPDF").checked;
+      const exportPNG = document.getElementById("exportPNG").checked;
+      const addWatermark = document.getElementById("useWatermark").checked;
+      const watermarkText = document.getElementById("watermarkText").value || "Sample Watermark";
+      
+      if (!exportPDF && !exportPNG) {
+        showNotification("Please select at least one export format", "error");
+        return;
+      }
+      
+      // Get file name pattern
+      const bookTitle = document.getElementById("bookTitle").value.trim() || "ebook";
+      const authorName = document.getElementById("authorName").value.trim() || "unknown";
+      const fileNamePattern = document.getElementById("fileNamePattern").value || "{title}";
+      
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+      
+      function formatFileName() {
+        return fileNamePattern
+          .replace(/{title}/g, bookTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+          .replace(/{author}/g, authorName.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+          .replace(/{date}/g, dateStr);
+      }
+      
+      const baseFileName = formatFileName();
+      
+      if (exportPDF && exportPNG) {
+        // Export both formats in a ZIP
+        exportBothFormatsZIP(baseFileName, addWatermark, watermarkText);
+      } else {
+        // Export selected format
+        if (exportPDF) {
+          exportAsPDF(baseFileName);
+        }
+        if (exportPNG) {
+          exportAsPNG(baseFileName, addWatermark, watermarkText);
+        }
+      }
+    }
+    
+    async function exportBothFormatsZIP(baseFileName, addWatermark, watermarkText) {
+      const zip = new JSZip();
+      const { jsPDF } = window.jspdf;
+      
+      // Create PDF
+      const pdfDoc = new jsPDF("p", "pt", "a4");
+      
+      // Process all pages including cover
+      const allPages = document.querySelectorAll(".page");
+      
+      for (let i = 0; i < allPages.length; i++) {
+        const page = allPages[i];
+        const canvas = await html2canvas(page, { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true
+        });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const width = pdfDoc.internal.pageSize.getWidth();
+        const height = (canvas.height * width) / canvas.width;
+        
+        if (i !== 0) pdfDoc.addPage();
+        pdfDoc.addImage(imgData, 'PNG', 0, 0, width, height);
+        
+        // Add to ZIP as individual PNG if needed
+        if (document.getElementById("exportPNG").checked) {
+          const pngCanvas = await processCanvasForExport(canvas, addWatermark, watermarkText);
+          const pngData = pngCanvas.toDataURL("image/png").replace(/^.*?,/, '');
+          zip.file(`${baseFileName}_page_${i+1}.png`, pngData, { base64: true });
+        }
+      }
+      
+      // Add PDF to ZIP
+      zip.file(`${baseFileName}.pdf`, pdfDoc.output("blob"), { binary: true });
+      
+      // Generate and download ZIP
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = `${baseFileName}_ebook.zip`;
+      link.click();
+      
+      showNotification("Ebook exported successfully as ZIP (PDF + PNG)!");
+    }
+    
+    async function exportAsPDF(baseFileName) {
+      const { jsPDF } = window.jspdf;
+      const pdfDoc = new jsPDF("p", "pt", "a4");
+      
+      // Process all pages including cover
+      const allPages = document.querySelectorAll(".page");
+      
+      for (let i = 0; i < allPages.length; i++) {
+        const page = allPages[i];
+        const canvas = await html2canvas(page, { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true
+        });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const width = pdfDoc.internal.pageSize.getWidth();
+        const height = (canvas.height * width) / canvas.width;
+        
+        if (i !== 0) pdfDoc.addPage();
+        pdfDoc.addImage(imgData, 'PNG', 0, 0, width, height);
+      }
+      
+      pdfDoc.save(`${baseFileName}.pdf`);
+      showNotification("PDF exported successfully!");
+    }
+    
+    async function exportAsPNG(baseFileName, addWatermark, watermarkText) {
+      const allPages = document.querySelectorAll(".page");
+      const zip = new JSZip();
+      
+      for (let i = 0; i < allPages.length; i++) {
+        const page = allPages[i];
+        const canvas = await html2canvas(page, { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true
+        });
+        
+        const processedCanvas = await processCanvasForExport(canvas, addWatermark, watermarkText);
+        const imgData = processedCanvas.toDataURL("image/png").replace(/^.*?,/, '');
+        
+        zip.file(`${baseFileName}_page_${i+1}.png`, imgData, { base64: true });
+      }
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = `${baseFileName}_pages.zip`;
+      link.click();
+      
+      showNotification("PNG pages exported successfully!");
+    }
+    
+    async function processCanvasForExport(canvas, addWatermark, watermarkText) {
+      if (!addWatermark) return canvas;
+      
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const ctx = tempCanvas.getContext("2d");
+      
+      // Draw original image
+      ctx.drawImage(canvas, 0, 0);
+      
+      // Add watermark
+      ctx.fillStyle = "rgba(0,0,0,0.1)";
+      ctx.font = "bold 60px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      // Calculate diagonal watermark
+      ctx.save();
+      ctx.translate(canvas.width/2, canvas.height/2);
+      ctx.rotate(-0.3); // 20 degree angle
+      
+      // Draw watermark text multiple times for better visibility
+      for (let y = -canvas.height; y < canvas.height*2; y += 200) {
+        for (let x = -canvas.width; x < canvas.width*2; x += 400) {
+          ctx.fillText(watermarkText, x, y);
+        }
+      }
+      ctx.restore();
+      
+      return tempCanvas;
+    }
+  </script>
+</body>
+</html>
