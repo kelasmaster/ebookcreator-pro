@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.0/mammoth.browser.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Merriweather:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
   
   <style>
@@ -438,6 +439,69 @@
     .notification.warning {
       background-color: var(--warning-color);
     }
+    
+    /* File upload dropdown */
+    .file-upload-container {
+      position: relative;
+      margin-bottom: 15px;
+    }
+    
+    .file-type-dropdown {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 10;
+    }
+    
+    .dropdown-btn {
+      padding: 8px 12px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      background-color: white;
+      min-width: 160px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      border-radius: var(--border-radius);
+      z-index: 11;
+    }
+    
+    .dropdown-content a {
+      color: var(--dark-color);
+      padding: 8px 12px;
+      text-decoration: none;
+      display: block;
+      font-size: 14px;
+    }
+    
+    .dropdown-content a:hover {
+      background-color: #f1f1f1;
+    }
+    
+    .show-dropdown {
+      display: block;
+    }
+    
+    .cover-upload-btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      text-align: center;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -456,12 +520,22 @@
     <aside class="sidebar">
       <div class="sidebar-section">
         <h3>Import Content</h3>
-        <div class="file-upload" id="dropZone">
-          <i>📄</i>
-          <p>Drag & drop .txt file here</p>
-          <small>or click to browse files</small>
+        <div class="file-upload-container">
+          <div class="file-upload" id="dropZone">
+            <i>📄</i>
+            <p>Drag & drop file here</p>
+            <small>or click to browse files</small>
+          </div>
+          <div class="file-type-dropdown">
+            <button class="dropdown-btn" onclick="toggleDropdown()">TXT ▼</button>
+            <div class="dropdown-content" id="fileTypeDropdown">
+              <a href="#" onclick="setFileType('txt')">TXT File</a>
+              <a href="#" onclick="setFileType('docx')">Word Document</a>
+            </div>
+          </div>
         </div>
         <input type="file" id="txtFile" accept=".txt" style="display:none">
+        <input type="file" id="wordFile" accept=".docx,.doc" style="display:none">
       </div>
       
       <div class="sidebar-section">
@@ -484,11 +558,14 @@
       
       <div class="sidebar-section">
         <h3>Cover Image</h3>
-        <div class="file-upload" id="coverDropZone">
+        <div id="coverDropZone" class="file-upload">
           <i>🖼️</i>
-          <p>Drag & drop cover image</p>
-          <small>or click to browse files</small>
+          <p>Click to upload cover image</p>
+          <small>JPG, PNG (max 5MB)</small>
         </div>
+        <button class="cover-upload-btn" onclick="document.getElementById('imgInput').click()">
+          Select Cover Image
+        </button>
         <input type="file" id="imgInput" accept="image/*" style="display:none">
         <div id="coverPreview" style="margin-top: 15px;"></div>
       </div>
@@ -629,11 +706,13 @@
     let currentText = "";
     let coverImageSrc = "";
     let pages = [];
+    let currentFileType = 'txt';
     
     // DOM elements
     const dropZone = document.getElementById("dropZone");
     const coverDropZone = document.getElementById("coverDropZone");
     const txtFileInput = document.getElementById("txtFile");
+    const wordFileInput = document.getElementById("wordFile");
     const imgInput = document.getElementById("imgInput");
     const previewSpinner = document.getElementById("previewSpinner");
     const notification = document.getElementById("notification");
@@ -646,8 +725,16 @@
     
     function setupEventListeners() {
       // Text file upload
-      dropZone.addEventListener("click", () => txtFileInput.click());
+      dropZone.addEventListener("click", () => {
+        if (currentFileType === 'txt') {
+          txtFileInput.click();
+        } else {
+          wordFileInput.click();
+        }
+      });
+      
       txtFileInput.addEventListener("change", handleFileUpload);
+      wordFileInput.addEventListener("change", handleFileUpload);
       
       // Cover image upload
       coverDropZone.addEventListener("click", () => imgInput.click());
@@ -671,11 +758,20 @@
         dropZone.style.backgroundColor = "transparent";
         
         const file = e.dataTransfer.files[0];
-        if (file && file.type === "text/plain") {
+        if (!file) return;
+        
+        // Check file type
+        if (currentFileType === 'txt' && file.type === "text/plain") {
           txtFileInput.files = e.dataTransfer.files;
           handleFileUpload({ target: txtFileInput });
-        } else {
-          showNotification("Please upload a valid .txt file", "error");
+        } 
+        else if (currentFileType === 'docx' && 
+                (file.name.endsWith('.docx') || file.name.endsWith('.doc'))) {
+          wordFileInput.files = e.dataTransfer.files;
+          handleFileUpload({ target: wordFileInput });
+        }
+        else {
+          showNotification(`Please upload a valid ${currentFileType === 'txt' ? '.txt' : 'Word'} file`, "error");
         }
       });
       
@@ -722,6 +818,17 @@
       });
     }
     
+    function toggleDropdown() {
+      document.getElementById("fileTypeDropdown").classList.toggle("show-dropdown");
+    }
+    
+    function setFileType(type) {
+      currentFileType = type;
+      document.querySelector(".dropdown-btn").textContent = 
+        type === 'txt' ? 'TXT ▼' : 'Word ▼';
+      toggleDropdown();
+    }
+    
     function showNotification(message, type = "success") {
       notification.textContent = message;
       notification.className = "notification " + type;
@@ -732,31 +839,78 @@
       }, 3000);
     }
     
-    function handleFileUpload(event) {
+    async function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
       
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification("File size should be less than 5MB", "error");
+        return;
+      }
+      
       const reader = new FileReader();
-      reader.onload = function(e) {
-        originalText = e.target.result;
-        document.getElementById("inputText").value = originalText;
-        
-        // Auto-detect title if empty
-        if (!document.getElementById("bookTitle").value) {
-          const firstLine = originalText.split('\n')[0].trim();
-          if (firstLine.length > 0 && firstLine.length < 100) {
-            document.getElementById("bookTitle").value = firstLine;
+      
+      if (currentFileType === 'docx') {
+        // Handle Word document using mammoth.js
+        try {
+          const arrayBuffer = await readFileAsArrayBuffer(file);
+          const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+          
+          originalText = result.value;
+          document.getElementById("inputText").value = originalText;
+          
+          // Auto-detect title if empty
+          if (!document.getElementById("bookTitle").value) {
+            const firstLine = originalText.split('\n')[0].trim();
+            if (firstLine.length > 0 && firstLine.length < 100) {
+              document.getElementById("bookTitle").value = firstLine;
+            }
           }
+          
+          showNotification("Word document processed successfully!");
+        } catch (error) {
+          showNotification("Error processing Word document: " + error.message, "error");
+          console.error(error);
         }
-        
-        showNotification("Text file loaded successfully!");
-      };
-      reader.readAsText(file);
+      } else {
+        // Handle TXT file
+        reader.onload = function(e) {
+          originalText = e.target.result;
+          document.getElementById("inputText").value = originalText;
+          
+          // Auto-detect title if empty
+          if (!document.getElementById("bookTitle").value) {
+            const firstLine = originalText.split('\n')[0].trim();
+            if (firstLine.length > 0 && firstLine.length < 100) {
+              document.getElementById("bookTitle").value = firstLine;
+            }
+          }
+          
+          showNotification("Text file loaded successfully!");
+        };
+        reader.readAsText(file);
+      }
+    }
+    
+    function readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
     }
     
     function handleCoverUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification("Image size should be less than 5MB", "error");
+        return;
+      }
       
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -868,7 +1022,7 @@
       const wordsPerPage = parseInt(document.getElementById("wordCount").value) || 500;
       const fontFamily = document.getElementById("fontFamily").value;
       const fontSize = document.getElementById("fontSize").value + "px";
-      const lineHeight = document.getElementById("lineHeight").value;
+            const lineHeight = document.getElementById("lineHeight").value;
       const txtColor = document.getElementById("txtColor").value;
       
       const marginTop = document.getElementById("marginTop").value + "px";
@@ -995,7 +1149,19 @@
         const paraWords = para.trim().split(/\s+/);
         const wordCount = paraWords.length;
         
-        if (currentPage.content.length > 0) {
+        if (currentPage.wordCount + wordCount > wordsPerPage && currentPage.content.length > 0) {
+          result.push({
+            content: currentPage.content.join("\n\n"),
+            wordCount: currentPage.wordCount
+          });
+          currentPage = { content: [para], wordCount: wordCount };
+        } else {
+          currentPage.content.push(para);
+          currentPage.wordCount += wordCount;
+        }
+      }
+      
+      if (currentPage.content.length > 0) {
         result.push({
           content: currentPage.content.join("\n\n"),
           wordCount: currentPage.wordCount
@@ -1079,11 +1245,9 @@
         pdfDoc.addImage(imgData, 'PNG', 0, 0, width, height);
         
         // Add to ZIP as individual PNG if needed
-        if (document.getElementById("exportPNG").checked) {
-          const pngCanvas = await processCanvasForExport(canvas, addWatermark, watermarkText);
-          const pngData = pngCanvas.toDataURL("image/png").replace(/^.*?,/, '');
-          zip.file(`${baseFileName}_page_${i+1}.png`, pngData, { base64: true });
-        }
+        const pngCanvas = await processCanvasForExport(canvas, addWatermark, watermarkText);
+        const pngData = pngCanvas.toDataURL("image/png").replace(/^.*?,/, '');
+        zip.file(`${baseFileName}_page_${i+1}.png`, pngData, { base64: true });
       }
       
       // Add PDF to ZIP
@@ -1184,6 +1348,19 @@
       ctx.restore();
       
       return tempCanvas;
+    }
+    
+    // Close dropdown when clicking outside
+    window.onclick = function(event) {
+      if (!event.target.matches('.dropdown-btn')) {
+        const dropdowns = document.getElementsByClassName("dropdown-content");
+        for (let i = 0; i < dropdowns.length; i++) {
+          const openDropdown = dropdowns[i];
+          if (openDropdown.classList.contains('show-dropdown')) {
+            openDropdown.classList.remove('show-dropdown');
+          }
+        }
+      }
     }
   </script>
 </body>
