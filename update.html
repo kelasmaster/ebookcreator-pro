@@ -1,13 +1,1001 @@
-            wordCount: currentPage.wordCount
-          });
-          currentPage = { content: [para], wordCount: wordCount };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ebook Creator Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Merriweather:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --secondary-color: #3f37c9;
+      --accent-color: #4cc9f0;
+      --light-color: #f8f9fa;
+      --dark-color: #212529;
+      --success-color: #4caf50;
+      --warning-color: #ff9800;
+      --danger-color: #f44336;
+      --border-radius: 8px;
+      --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s ease;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Roboto', sans-serif;
+      line-height: 1.6;
+      color: var(--dark-color);
+      background-color: #f5f7fa;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+    }
+    
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 20px 0;
+      margin-bottom: 30px;
+      box-shadow: var(--box-shadow);
+    }
+    
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    
+    h2 {
+      font-size: 22px;
+      margin-bottom: 15px;
+      color: var(--primary-color);
+    }
+    
+    h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: var(--secondary-color);
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: 20px;
+      box-shadow: var(--box-shadow);
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+    
+    .sidebar-section {
+      margin-bottom: 25px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 25px;
+    }
+    
+    .sidebar-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    
+    /* Main content */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    /* Form elements */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: var(--border-radius);
+      font-size: 14px;
+      transition: var(--transition);
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+    }
+    
+    input[type="color"] {
+      width: 40px;
+      height: 40px;
+      padding: 2px;
+      border: 1px solid #ddd;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+    }
+    
+    input[type="checkbox"] {
+      margin-right: 8px;
+      transform: scale(1.1);
+    }
+    
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+      transition: var(--transition);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn:hover {
+      background-color: var(--secondary-color);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-secondary {
+      background-color: #6c757d;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+    
+    .btn-success {
+      background-color: var(--success-color);
+    }
+    
+    .btn-success:hover {
+      background-color: #3d8b40;
+    }
+    
+    .btn-danger {
+      background-color: var(--danger-color);
+    }
+    
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: var(--border-radius);
+      padding: 20px;
+      box-shadow: var(--box-shadow);
+    }
+    
+    /* Text editor */
+    .text-editor {
+      position: relative;
+    }
+    
+    #inputText {
+      width: 100%;
+      min-height: 300px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: var(--border-radius);
+      font-size: 15px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+    
+    .editor-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    
+    /* File upload */
+    .file-upload {
+      border: 2px dashed #ccc;
+      border-radius: var(--border-radius);
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-bottom: 15px;
+    }
+    
+    .file-upload:hover {
+      border-color: var(--primary-color);
+      background-color: rgba(67, 97, 238, 0.05);
+    }
+    
+    .file-upload i {
+      font-size: 40px;
+      color: var(--primary-color);
+      margin-bottom: 10px;
+    }
+    
+    .file-upload p {
+      margin-bottom: 5px;
+    }
+    
+    .file-upload small {
+      color: #6c757d;
+    }
+    
+    /* Preview */
+    .preview-container {
+      position: relative;
+    }
+    
+    #preview {
+      border: 1px solid #ddd;
+      border-radius: var(--border-radius);
+      background: white;
+      min-height: 400px;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: var(--box-shadow);
+    }
+    
+    .page {
+      break-after: page;
+      position: relative;
+      padding: 40px;
+      margin-bottom: 20px;
+      border-radius: var(--border-radius);
+      background: white;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+      min-height: 800px;
+      max-width: 600px;
+      margin: 0 auto 30px;
+    }
+    
+    .page-cover {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+    }
+    
+    .page-cover img {
+      max-width: 80%;
+      max-height: 400px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .content {
+      white-space: pre-wrap;
+      line-height: 1.8;
+      margin: 0 0 60px;
+      text-align: justify;
+      hyphens: auto;
+    }
+    
+    .footer {
+      position: absolute;
+      bottom: 40px;
+      left: 40px;
+      right: 40px;
+      font-size: 12px;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: var(--transition);
+    }
+    
+    .tab.active {
+      border-bottom-color: var(--primary-color);
+      color: var(--primary-color);
+      font-weight: 500;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      
+      .sidebar {
+        position: static;
+      }
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #aaa;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #888;
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      display: none;
+      width: 40px;
+      height: 40px;
+      margin: 20px auto;
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--primary-color);
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Notification */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      background-color: var(--success-color);
+      color: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+      z-index: 1000;
+      transform: translateX(200%);
+      transition: transform 0.3s ease;
+    }
+    
+    .notification.show {
+      transform: translateX(0);
+    }
+    
+    .notification.error {
+      background-color: var(--danger-color);
+    }
+    
+    .notification.warning {
+      background-color: var(--warning-color);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>Ebook Creator Pro</h1>
+      <div class="btn-group">
+        <button id="generateBtn" class="btn btn-success">Generate Ebook</button>
+        <button id="exportBtn" class="btn btn-secondary">Export</button>
+      </div>
+    </div>
+  </header>
+  
+  <div class="container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3>Import Content</h3>
+        <div class="file-upload" id="dropZone">
+          <i>📄</i>
+          <p>Drag & drop .txt file here</p>
+          <small>or click to browse files</small>
+        </div>
+        <input type="file" id="txtFile" accept=".txt" style="display:none">
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Book Metadata</h3>
+        <div class="form-group">
+          <label for="bookTitle">Title</label>
+          <input type="text" id="bookTitle" placeholder="Book Title">
+        </div>
+        <div class="form-group">
+          <label for="authorName">Author</label>
+          <input type="text" id="authorName" placeholder="Author Name">
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="includeMeta" checked>
+            Include in ebook
+          </label>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Cover Image</h3>
+        <div class="file-upload" id="coverDropZone">
+          <i>🖼️</i>
+          <p>Drag & drop cover image</p>
+          <small>or click to browse files</small>
+        </div>
+        <input type="file" id="imgInput" accept="image/*" style="display:none">
+        <div id="coverPreview" style="margin-top: 15px;"></div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Page Settings</h3>
+        <div class="form-group">
+          <label for="pageWidth">Width (px)</label>
+          <input type="number" id="pageWidth" value="600" min="300" max="1200">
+        </div>
+        <div class="form-group">
+          <label for="pageHeight">Height (px)</label>
+          <input type="number" id="pageHeight" value="800" min="400" max="2000">
+        </div>
+        <div class="form-group">
+          <label for="wordCount">Words per page</label>
+          <input type="number" id="wordCount" value="500" min="100" max="2000">
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Typography</h3>
+        <div class="form-group">
+          <label for="fontFamily">Font Family</label>
+          <select id="fontFamily">
+            <option value="'Roboto', sans-serif">Roboto (Sans-serif)</option>
+            <option value="'Merriweather', serif">Merriweather (Serif)</option>
+            <option value="'Source Code Pro', monospace">Source Code Pro (Monospace)</option>
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+            <option value="Georgia, serif">Georgia</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="fontSize">Font Size (px)</label>
+          <input type="number" id="fontSize" value="14" min="8" max="36">
+        </div>
+        <div class="form-group">
+          <label for="lineHeight">Line Height</label>
+          <input type="number" id="lineHeight" value="1.6" min="1" max="3" step="0.1">
+        </div>
+        <div class="form-group">
+          <label for="txtColor">Text Color</label>
+          <input type="color" id="txtColor" value="#333333">
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Margins & Spacing</h3>
+        <div class="form-group">
+          <label for="marginTop">Top (px)</label>
+          <input type="number" id="marginTop" value="40" min="0" max="200">
+        </div>
+        <div class="form-group">
+          <label for="marginBottom">Bottom (px)</label>
+          <input type="number" id="marginBottom" value="60" min="0" max="200">
+        </div>
+        <div class="form-group">
+          <label for="marginLeft">Left (px)</label>
+          <input type="number" id="marginLeft" value="40" min="0" max="200">
+        </div>
+        <div class="form-group">
+          <label for="marginRight">Right (px)</label>
+          <input type="number" id="marginRight" value="40" min="0" max="200">
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Export Options</h3>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="exportPDF" checked>
+            Export as PDF
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="exportPNG">
+            Export as PNG
+          </label>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="useWatermark">
+            Add Watermark
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="watermarkText">Watermark Text</label>
+          <input type="text" id="watermarkText" value="Sample Watermark">
+        </div>
+        <div class="form-group">
+          <label for="fileNamePattern">File Name Pattern</label>
+          <input type="text" id="fileNamePattern" value="{title}" placeholder="e.g. {title}">
+          <small>Available variables: {title}, {author}, {date}</small>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="card">
+        <div class="tabs">
+          <div class="tab active" data-tab="editor">Editor</div>
+          <div class="tab" data-tab="preview">Preview</div>
+        </div>
+        
+        <div class="tab-content active" id="editor">
+          <div class="editor-toolbar">
+            <button class="btn" onclick="cleanText()">Clean Text</button>
+            <button class="btn" onclick="removeSymbols()">Remove Symbols</button>
+            <button class="btn" onclick="formatParagraphs()">Format Paragraphs</button>
+          </div>
+          <textarea id="inputText" placeholder="Paste your text here or upload a file..."></textarea>
+        </div>
+        
+        <div class="tab-content" id="preview">
+          <div id="preview"></div>
+          <div class="spinner" id="previewSpinner"></div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>Export Settings</h3>
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="generateEbook()">Generate Preview</button>
+          <button class="btn btn-secondary" onclick="exportEbook()">Export Ebook</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <div class="notification" id="notification"></div>
+  
+  <script>
+    // Global variables
+    let originalText = "";
+    let currentText = "";
+    let coverImageSrc = "";
+    let pages = [];
+    
+    // DOM elements
+    const dropZone = document.getElementById("dropZone");
+    const coverDropZone = document.getElementById("coverDropZone");
+    const txtFileInput = document.getElementById("txtFile");
+    const imgInput = document.getElementById("imgInput");
+    const previewSpinner = document.getElementById("previewSpinner");
+    const notification = document.getElementById("notification");
+    
+    // Initialize the application
+    document.addEventListener("DOMContentLoaded", function() {
+      setupEventListeners();
+      setupTabs();
+    });
+    
+    function setupEventListeners() {
+      // Text file upload
+      dropZone.addEventListener("click", () => txtFileInput.click());
+      txtFileInput.addEventListener("change", handleFileUpload);
+      
+      // Cover image upload
+      coverDropZone.addEventListener("click", () => imgInput.click());
+      imgInput.addEventListener("change", handleCoverUpload);
+      
+      // Drag and drop for text files
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#4361ee";
+        dropZone.style.backgroundColor = "rgba(67, 97, 238, 0.05)";
+      });
+      
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.style.borderColor = "#ccc";
+        dropZone.style.backgroundColor = "transparent";
+      });
+      
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#ccc";
+        dropZone.style.backgroundColor = "transparent";
+        
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === "text/plain") {
+          txtFileInput.files = e.dataTransfer.files;
+          handleFileUpload({ target: txtFileInput });
         } else {
-          currentPage.content.push(para);
-          currentPage.wordCount += wordCount;
+          showNotification("Please upload a valid .txt file", "error");
+        }
+      });
+      
+      // Drag and drop for cover images
+      coverDropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        coverDropZone.style.borderColor = "#4361ee";
+        coverDropZone.style.backgroundColor = "rgba(67, 97, 238, 0.05)";
+      });
+      
+      coverDropZone.addEventListener("dragleave", () => {
+        coverDropZone.style.borderColor = "#ccc";
+        coverDropZone.style.backgroundColor = "transparent";
+      });
+      
+      coverDropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        coverDropZone.style.borderColor = "#ccc";
+        coverDropZone.style.backgroundColor = "transparent";
+        
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+          imgInput.files = e.dataTransfer.files;
+          handleCoverUpload({ target: imgInput });
+        } else {
+          showNotification("Please upload a valid image file", "error");
+        }
+      });
+    }
+    
+    function setupTabs() {
+      const tabs = document.querySelectorAll(".tab");
+      tabs.forEach(tab => {
+        tab.addEventListener("click", function() {
+          // Remove active class from all tabs and content
+          document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+          document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+          
+          // Add active class to clicked tab and corresponding content
+          this.classList.add("active");
+          const tabId = this.getAttribute("data-tab");
+          document.getElementById(tabId).classList.add("active");
+        });
+      });
+    }
+    
+    function showNotification(message, type = "success") {
+      notification.textContent = message;
+      notification.className = "notification " + type;
+      notification.classList.add("show");
+      
+      setTimeout(() => {
+        notification.classList.remove("show");
+      }, 3000);
+    }
+    
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        originalText = e.target.result;
+        document.getElementById("inputText").value = originalText;
+        
+        // Auto-detect title if empty
+        if (!document.getElementById("bookTitle").value) {
+          const firstLine = originalText.split('\n')[0].trim();
+          if (firstLine.length > 0 && firstLine.length < 100) {
+            document.getElementById("bookTitle").value = firstLine;
+          }
+        }
+        
+        showNotification("Text file loaded successfully!");
+      };
+      reader.readAsText(file);
+    }
+    
+    function handleCoverUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        coverImageSrc = e.target.result;
+        const preview = document.getElementById("coverPreview");
+        preview.innerHTML = `
+          <img src="${coverImageSrc}" alt="Cover Preview" style="max-width:100%; border-radius:4px; box-shadow:0 2px 5px rgba(0,0,0,0.1)">
+          <button class="btn btn-danger" style="margin-top:10px; width:100%" onclick="removeCover()">Remove Cover</button>
+        `;
+        showNotification("Cover image uploaded!");
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    function removeCover() {
+      coverImageSrc = "";
+      document.getElementById("coverPreview").innerHTML = "";
+      imgInput.value = "";
+      showNotification("Cover image removed");
+    }
+    
+    // Text cleaning functions
+    function cleanText() {
+      const input = document.getElementById("inputText").value;
+      if (!input.trim()) {
+        showNotification("Please paste or upload some text first", "error");
+        return;
+      }
+      
+      // Basic cleaning
+      let cleaned = input
+        .replace(/\r\n/g, '\n') // Normalize line endings
+        .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
+        .replace(/[^\S\n]{2,}/g, ' ') // Remove excessive spaces
+        .trim();
+      
+      document.getElementById("inputText").value = cleaned;
+      showNotification("Text cleaned successfully!");
+    }
+    
+    function removeSymbols() {
+      const input = document.getElementById("inputText").value;
+      if (!input.trim()) {
+        showNotification("Please paste or upload some text first", "error");
+        return;
+      }
+      
+      const symbolsToRemove = /[`~^*+=|<>{}_—–•▪■□▢▣▤▥▦▧▨▩▪▫▬▭▮▯☀☁☂☃☄★☆☇☈☉☊☋☌☍☎☏☐☑☒☓☔☕☖☗☘☙☚☛☜☝☞☟☠☡☢☣☤☥☦☧☨☩☪☫☬☭☮☯☰☱☲☳☴☵☶☷☸☹☺☻☼☽☾☿♀♁♂♃♄♅♆♇♈♉♊♋♌♍♎♏♐♑♒♓♔♕♖♗♘♙♚♛♜♝♞♟♠♡♢♣♤♥♦♧♨♩♪♫♬♭♮♯♰♱♲♳♴♵♶♷♸♹♺♻♼♽♾♿⚀⚁⚂⚃⚄⚅⚆⚇⚈⚉⚊⚋⚌⚍⚎⚏⚐⚑⚒⚓⚔⚕⚖⚗⚘⚙⚚⚛⚜⚝⚞⚟⚠⚡⚢⚣⚤⚥⚦⚧⚨⚩⚪⚫⚬⚭⚮⚯⚰⚱⚲⚳⚴⚵⚶⚷⚸⚹⚺⚻⚼⚽⚾⚿⛀⛁⛂⛃⛄⛅⛆⛇⛈⛉⛊⛋⛌⛍⛎⛏⛐⛑⛒⛓⛔⛕⛖⛗⛘⛙⛚⛛⛜⛝⛞⛟⛠⛡⛢⛣⛤⛥⛦⛧⛨⛩⛪⛫⛬⛭⛮⛯⛰⛱⛲⛳⛴⛵⛶⛷⛸⛹⛺⛻⛼⛽⛾⛿]/g;
+      
+      let cleaned = input.replace(symbolsToRemove, '');
+      document.getElementById("inputText").value = cleaned;
+      showNotification("Symbols removed successfully!");
+    }
+    
+    function formatParagraphs() {
+      const input = document.getElementById("inputText").value;
+      if (!input.trim()) {
+        showNotification("Please paste or upload some text first", "error");
+        return;
+      }
+      
+      // Split into paragraphs, trim each, and join with double newlines
+      let formatted = input.split('\n')
+        .map(para => para.trim())
+        .filter(para => para.length > 0)
+        .join('\n\n');
+      
+      document.getElementById("inputText").value = formatted;
+      showNotification("Paragraphs formatted successfully!");
+    }
+    
+    // Ebook generation functions
+    function generateEbook() {
+      const input = document.getElementById("inputText").value;
+      if (!input.trim()) {
+        showNotification("Please paste or upload some text first", "error");
+        return;
+      }
+      
+      // Show loading spinner
+      previewSpinner.style.display = "block";
+      document.getElementById("preview").innerHTML = "";
+      
+      // Process in small chunks to avoid blocking the UI
+      setTimeout(() => {
+        try {
+          processTextAndGeneratePages(input);
+          previewSpinner.style.display = "none";
+          showNotification("Ebook generated successfully!");
+          
+          // Switch to preview tab
+          document.querySelector('.tab[data-tab="preview"]').click();
+        } catch (error) {
+          previewSpinner.style.display = "none";
+          showNotification("Error generating ebook: " + error.message, "error");
+          console.error(error);
+        }
+      }, 100);
+    }
+    
+    function processTextAndGeneratePages(input) {
+      // Clean the text first
+      currentText = cleanTextForProcessing(input);
+      
+      // Get settings
+      const bookTitle = document.getElementById("bookTitle").value || "Untitled";
+      const authorName = document.getElementById("authorName").value || "Unknown Author";
+      const includeMeta = document.getElementById("includeMeta").checked;
+      const wordsPerPage = parseInt(document.getElementById("wordCount").value) || 500;
+      const fontFamily = document.getElementById("fontFamily").value;
+      const fontSize = document.getElementById("fontSize").value + "px";
+      const lineHeight = document.getElementById("lineHeight").value;
+      const txtColor = document.getElementById("txtColor").value;
+      
+      const marginTop = document.getElementById("marginTop").value + "px";
+      const marginBottom = document.getElementById("marginBottom").value + "px";
+      const marginLeft = document.getElementById("marginLeft").value + "px";
+      const marginRight = document.getElementById("marginRight").value + "px";
+      
+      const pageWidth = document.getElementById("pageWidth").value + "px";
+      const pageHeight = document.getElementById("pageHeight").value + "px";
+      
+      const preview = document.getElementById("preview");
+      preview.innerHTML = "";
+      
+      // Create cover page if image exists
+      if (coverImageSrc) {
+        const coverPage = document.createElement("div");
+        coverPage.className = "page";
+        coverPage.style.fontFamily = fontFamily;
+        coverPage.style.fontSize = fontSize;
+        coverPage.style.color = txtColor;
+        coverPage.style.width = pageWidth;
+        coverPage.style.minHeight = pageHeight;
+        coverPage.style.lineHeight = lineHeight;
+        
+        coverPage.innerHTML = `
+          <div class="page-cover">
+            <img src="${coverImageSrc}" alt="${bookTitle}">
+            ${includeMeta ? `<h2>${bookTitle}</h2><p>by ${authorName}</p>` : ''}
+          </div>
+        `;
+        
+        preview.appendChild(coverPage);
+      }
+      
+      // Split into chapters (detected by # prefix)
+      const chapters = autoDetectChapters(currentText);
+      
+      // Process each chapter
+      pages = [];
+      chapters.forEach((chapter, chapterIndex) => {
+        const chapterPages = splitIntoPages(chapter.content, wordsPerPage);
+        
+        chapterPages.forEach((page, pageIndex) => {
+          const pageElement = document.createElement("div");
+          pageElement.className = "page";
+          pageElement.style.fontFamily = fontFamily;
+          pageElement.style.fontSize = fontSize;
+          pageElement.style.color = txtColor;
+          pageElement.style.width = pageWidth;
+          pageElement.style.minHeight = pageHeight;
+          pageElement.style.lineHeight = lineHeight;
+          pageElement.style.padding = `${marginTop} ${marginRight} ${marginBottom} ${marginLeft}`;
+          
+          // Chapter title for first page of chapter
+          let contentHtml = "";
+          if (pageIndex === 0 && chapter.title !== "Untitled") {
+            contentHtml += `<h2 style="text-align:center;margin-bottom:30px">${chapter.title}</h2>`;
+          }
+          
+          contentHtml += page.content.replace(/\n/g, "<br>");
+          
+          pageElement.innerHTML = `
+            <div class="content">${contentHtml}</div>
+            ${includeMeta ? `
+              <div class="footer">
+                <span>${bookTitle} - ${authorName}</span>
+                <span>Page ${pages.length + 1}</span>
+              </div>
+            ` : ''}
+          `;
+          
+          preview.appendChild(pageElement);
+          
+          // Store page data for export
+          pages.push({
+            element: pageElement,
+            content: page.content,
+            pageNumber: pages.length + 1
+          });
+        });
+      });
+    }
+    
+    function cleanTextForProcessing(text) {
+      // Remove unwanted characters and normalize
+      return text
+        .replace(/\r\n/g, '\n') // Normalize line endings
+        .replace(/[`~^*+=|<>{}_—–]/g, '') // Remove symbols
+        .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
+        .replace(/[^\S\n]{2,}/g, ' ') // Remove excessive spaces
+        .trim();
+    }
+    
+    function autoDetectChapters(text) {
+      const lines = text.split(/\n/);
+      const result = [];
+      let currentChapter = { title: "Untitled", content: [] };
+      
+      for (let line of lines) {
+        const match = line.match(/^#\s*(.+?)\s*$/);
+        if (match) {
+          if (currentChapter.content.length > 0 || currentChapter.title !== "Untitled") {
+            result.push(currentChapter);
+          }
+          currentChapter = { title: match[1].trim(), content: [] };
+        } else {
+          currentChapter.content.push(line);
         }
       }
       
-      if (currentPage.content.length > 0) {
+      if (currentChapter.content.length > 0 || currentChapter.title !== "Untitled") {
+        result.push(currentChapter);
+      }
+      
+      return result.length > 0 ? result : [{ title: "Untitled", content: lines }];
+    }
+    
+    function splitIntoPages(content, wordsPerPage = 500) {
+      const paragraphs = content.join('\n').split(/\n{2,}/).filter(p => p.trim().length > 0);
+      const result = [];
+      let currentPage = { content: [], wordCount: 0 };
+      
+      for (let para of paragraphs) {
+        const paraWords = para.trim().split(/\s+/);
+        const wordCount = paraWords.length;
+        
+        if (currentPage.content.length > 0) {
         result.push({
           content: currentPage.content.join("\n\n"),
           wordCount: currentPage.wordCount
