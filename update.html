@@ -10,6 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.0/mammoth.browser.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Merriweather:wght@400;700&family=Source+Code+Pro&display=swap" rel="stylesheet">
+  
   <style>
     :root {
       --primary-color: #4361ee;
@@ -289,16 +290,17 @@
     }
     
     .page {
-      break-after: page;
       position: relative;
       padding: 40px;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
       border-radius: var(--border-radius);
       background: white;
       box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
       min-height: 800px;
       max-width: 600px;
-      margin: 0 auto 30px;
+      margin: 0 auto;
+      overflow: visible;
+      break-after: page;
     }
     
     .page-cover {
@@ -334,8 +336,11 @@
       color: #666;
       display: flex;
       justify-content: space-between;
-      padding-top: 10px;
+      padding: 10px;
       border-top: 1px solid #eee;
+      background-color: white;
+      z-index: 10;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
     }
     
     /* Tabs */
@@ -501,31 +506,10 @@
       text-align: center;
       margin-top: 10px;
     }
-    .page {
-      position: relative;
-      overflow: visible; /* Ensure footer is not clipped */
-    }
-    
-    .footer {
-      position: absolute;
-      bottom: 40px;
-      left: 40px;
-      right: 40px;
-      font-size: 12px;
-      color: #666;
-      display: flex;
-      justify-content: space-between;
-      padding-top: 10px;
-      border-top: 1px solid #eee;
-      z-index: 10; /* Ensure footer stays above content */
-      background-color: white; /* Make sure footer is readable */
-      padding: 10px;
-      box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
-    }
   </style>
 </head>
 <body>
- <header>
+  <header>
     <div class="header-content">
       <h1>Ebook Creator Pro</h1>
       <div class="btn-group">
@@ -719,9 +703,9 @@
   </div>
   
   <div class="notification" id="notification"></div>
-
+  
   <script>
-     // Global variables
+    // Global variables
     let originalText = "";
     let currentText = "";
     let coverImageSrc = "";
@@ -1030,7 +1014,7 @@
         }
       }, 100);
     }
-
+    
     function processTextAndGeneratePages(input) {
       // Clean the text first
       currentText = cleanTextForProcessing(input);
@@ -1126,8 +1110,169 @@
         });
       });
     }
-
-    // Update the export functions to ensure footer is captured
+    
+    function cleanTextForProcessing(text) {
+      // Remove unwanted characters and normalize
+      return text
+        .replace(/\r\n/g, '\n') // Normalize line endings
+        .replace(/[`~^*+=|<>{}_—–]/g, '') // Remove symbols
+        .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
+        .replace(/[^\S\n]{2,}/g, ' ') // Remove excessive spaces
+        .trim();
+    }
+    
+    function autoDetectChapters(text) {
+      const lines = text.split(/\n/);
+      const result = [];
+      let currentChapter = { title: "Untitled", content: [] };
+      
+      for (let line of lines) {
+        const match = line.match(/^#\s*(.+?)\s*$/);
+        if (match) {
+          if (currentChapter.content.length > 0 || currentChapter.title !== "Untitled") {
+            result.push(currentChapter);
+          }
+          currentChapter = { title: match[1].trim(), content: [] };
+        } else {
+          currentChapter.content.push(line);
+        }
+      }
+      
+      if (currentChapter.content.length > 0 || currentChapter.title !== "Untitled") {
+        result.push(currentChapter);
+      }
+      
+      return result.length > 0 ? result : [{ title: "Untitled", content: lines }];
+    }
+    
+    function splitIntoPages(content, wordsPerPage = 500) {
+      const paragraphs = content.join('\n').split(/\n{2,}/).filter(p => p.trim().length > 0);
+      const result = [];
+      let currentPage = { content: [], wordCount: 0 };
+      
+      for (let para of paragraphs) {
+        const paraWords = para.trim().split(/\s+/);
+        const wordCount = paraWords.length;
+        
+        if (currentPage.wordCount + wordCount > wordsPerPage && currentPage.content.length > 0) {
+          result.push({
+            content: currentPage.content.join("\n\n"),
+            wordCount: currentPage.wordCount
+          });
+          currentPage = { content: [para], wordCount: wordCount };
+        } else {
+          currentPage.content.push(para);
+          currentPage.wordCount += wordCount;
+        }
+      }
+      
+      if (currentPage.content.length > 0) {
+        result.push({
+          content: currentPage.content.join("\n\n"),
+          wordCount: currentPage.wordCount
+        });
+      }
+      
+      return result;
+    }
+    
+    // Export functions
+    async function exportEbook() {
+      if (pages.length === 0) {
+        showNotification("Please generate the ebook first", "error");
+        return;
+      }
+      
+      const exportPDF = document.getElementById("exportPDF").checked;
+      const exportPNG = document.getElementById("exportPNG").checked;
+      const addWatermark = document.getElementById("useWatermark").checked;
+      const watermarkText = document.getElementById("watermarkText").value || "Sample Watermark";
+      
+      if (!exportPDF && !exportPNG) {
+        showNotification("Please select at least one export format", "error");
+        return;
+      }
+      
+      // Get file name pattern
+      const bookTitle = document.getElementById("bookTitle").value.trim() || "ebook";
+      const authorName = document.getElementById("authorName").value.trim() || "unknown";
+      const fileNamePattern = document.getElementById("fileNamePattern").value || "{title}";
+      
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+      
+      function formatFileName() {
+        return fileNamePattern
+          .replace(/{title}/g, bookTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+          .replace(/{author}/g, authorName.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+          .replace(/{date}/g, dateStr);
+      }
+      
+      const baseFileName = formatFileName();
+      
+      if (exportPDF && exportPNG) {
+        // Export both formats in a ZIP
+        exportBothFormatsZIP(baseFileName, addWatermark, watermarkText);
+      } else {
+        // Export selected format
+        if (exportPDF) {
+          exportAsPDF(baseFileName);
+        }
+        if (exportPNG) {
+          exportAsPNG(baseFileName, addWatermark, watermarkText);
+        }
+      }
+    }
+    
+    async function exportBothFormatsZIP(baseFileName, addWatermark, watermarkText) {
+      const zip = new JSZip();
+      const { jsPDF } = window.jspdf;
+      
+      // Create PDF
+      const pdfDoc = new jsPDF("p", "pt", "a4");
+      
+      // Process all pages including cover
+      const allPages = document.querySelectorAll(".page");
+      
+      for (let i = 0; i < allPages.length; i++) {
+        const page = allPages[i];
+        
+        // Capture the entire page including footer
+        const canvas = await html2canvas(page, { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          scrollY: -window.scrollY,
+          windowHeight: page.offsetHeight + 100
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        
+        const width = pdfDoc.internal.pageSize.getWidth();
+        const height = (canvas.height * width) / canvas.width;
+        
+        if (i !== 0) pdfDoc.addPage();
+        pdfDoc.addImage(imgData, 'PNG', 0, 0, width, height);
+        
+        // Add to ZIP as individual PNG if needed
+        const pngCanvas = await processCanvasForExport(canvas, addWatermark, watermarkText);
+        const pngData = pngCanvas.toDataURL("image/png").replace(/^.*?,/, '');
+        zip.file(`${baseFileName}_page_${i+1}.png`, pngData, { base64: true });
+      }
+      
+      // Add PDF to ZIP
+      zip.file(`${baseFileName}.pdf`, pdfDoc.output("blob"), { binary: true });
+      
+      // Generate and download ZIP
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = `${baseFileName}_ebook.zip`;
+      link.click();
+      
+      showNotification("Ebook exported successfully as ZIP (PDF + PNG)!");
+    }
+    
     async function exportAsPDF(baseFileName) {
       const { jsPDF } = window.jspdf;
       const pdfDoc = new jsPDF("p", "pt", "a4");
@@ -1143,8 +1288,8 @@
           scale: 2,
           useCORS: true,
           allowTaint: true,
-          scrollY: -window.scrollY, // Ensure we capture the entire page
-          windowHeight: page.offsetHeight + 100 // Extra space for footer
+          scrollY: -window.scrollY,
+          windowHeight: page.offsetHeight + 100
         });
         
         const imgData = canvas.toDataURL('image/png');
@@ -1191,7 +1336,7 @@
       showNotification("PNG pages exported successfully with footer!");
     }
 
-     async function processCanvasForExport(canvas, addWatermark, watermarkText) {
+    async function processCanvasForExport(canvas, addWatermark, watermarkText) {
       if (!addWatermark) return canvas;
       
       const tempCanvas = document.createElement("canvas");
